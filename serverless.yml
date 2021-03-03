@@ -1,0 +1,52 @@
+frameworkVersion: "2.9.0"
+
+service: faucet
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, 'offline'}
+  region: ap-southeast-1
+  stackTags:
+    projectName: rationally
+    projectStage: rationally-${opt:stage, self:provider.stage}
+  environment:
+    NAME: ${self:provider.stage}
+    SERVICE: ${self:service}
+  deploymentBucket:
+    blockPublicAccess: true
+    tags:
+      stage: ${self:provider.stage}
+  logRetentionInDays: 3653
+  tracing:
+    apiGateway: true
+    lambda: true
+functions:
+  faucet:
+    description: "Dispenses 1 eth to given address when endpoint is called"
+    handler: src/index.handler
+    timeout: 15 # long timeout as infura api can take awhile
+    events:
+      - http:
+          path: /donate/{walletAddress}
+          method: get
+          cors: true
+          request:
+            parameters:
+              paths:
+                walletAddress: true
+
+custom:
+  webpack:
+    includeModules:
+      forceExclude:
+        - "@types/aws-lambda"
+  serverless-offline:
+    noPrependStageInUrl: true
+  dotenv:
+    logging: true
+
+plugins:
+  - serverless-webpack
+  - serverless-dotenv-plugin
+  - serverless-offline
